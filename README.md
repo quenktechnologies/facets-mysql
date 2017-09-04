@@ -1,5 +1,5 @@
 
-# MySQL Facets
+# Facets MySQL
 
 > Faceted search compiler for use with node mysql.
 

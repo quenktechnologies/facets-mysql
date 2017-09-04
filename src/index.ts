@@ -55,7 +55,7 @@ const defaultCriteria: { [key: string]: Criteria } = {
 const _op = (field: string, op: string, value: any) =>
     `${field} ${op} ${value}`;
 
-const operators = {
+const operators: { [key: string]: (f: string, o:string, v:any) => string } = {
 
     '>': _op,
     '<': _op,
