@@ -160,6 +160,7 @@ exports.code = function (n, ctx, options) {
 };
 var defaultOptions = {
     maxFilters: 100,
+    logSyntaxErrors: true,
     policy: {}
 };
 exports.compile = function (src, options, ctx) {
@@ -169,6 +170,8 @@ exports.compile = function (src, options, ctx) {
         return exports.code(facets_parser_1.parse(src), ctx, afpl_1.util.fuse(defaultOptions, options));
     }
     catch (e) {
+        if (options.logSyntaxErrors)
+            console.error(e.stack ? e.stack : e);
         return afpl_1.Either.left("Invalid Syntax");
     }
 };

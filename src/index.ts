@@ -29,6 +29,7 @@ export interface Policy {
 export interface Options {
 
     maxFilters?: number
+  logSyntaxErrors?: boolean,
     policy?: Policy
 
 }
@@ -245,6 +246,7 @@ export const code = (n: Node.Node, ctx: Context, options: Options): Either<strin
 const defaultOptions: Options = {
 
     maxFilters: 100,
+  logSyntaxErrors: true,
     policy: {}
 
 };
@@ -257,6 +259,8 @@ export const compile = (src: string,
         return code(parse(src), ctx, util.fuse(defaultOptions, options))
     } catch (e) {
 
+      if(options.logSyntaxErrors)
+        console.error(e.stack?e.stack:e);
         return Either.left<string, Context>(`Invalid Syntax`);
 
     }
