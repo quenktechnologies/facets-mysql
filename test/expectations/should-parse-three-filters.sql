@@ -1,1 +1,1 @@
-SELECT * FROM `database`.`table` WHERE    `type` = 'c' AND  `name` = 'johan' AND  `active` = false
+SELECT * FROM `database`.`table` WHERE   `type` = 'c' AND  `name` = 'johan' AND  `active` = false

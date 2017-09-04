@@ -55,11 +55,6 @@ export declare const funcCriteria: (value: any, func: Maybe<(a: any) => any>, _n
  * operatorCriteria ensures the operators used are correct.
  */
 export declare const operatorCriteria: (value: any, operators: Maybe<string[]>, n: Node.Filter) => Either<string, any>;
-export declare class Result {
-    sql: string;
-    context: Context;
-    constructor(sql: string, context: Context);
-}
 /**
  * code turns an AST into Filters.
  */

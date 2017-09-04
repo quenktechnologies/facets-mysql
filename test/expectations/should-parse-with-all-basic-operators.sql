@@ -1,1 +1,1 @@
-SELECT * FROM `database`.`table` WHERE      `age` > 14 AND  `rank` < 23 AND  `price` >= 22.4 AND  `namespace`.`discount` <= 5.4 AND  `name` LIKE 'Product % name'
+SELECT * FROM `database`.`table` WHERE     `age` > 14 AND  `rank` < 23 AND  `price` >= 22.4 AND  `namespace`.`discount` <= 5.4 AND  `name` LIKE 'Product % name'

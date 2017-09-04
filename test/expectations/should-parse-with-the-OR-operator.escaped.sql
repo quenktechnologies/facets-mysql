@@ -1,1 +1,1 @@
-SELECT * FROM ?? WHERE   `tag` = ? OR  `tag` = ?
+SELECT * FROM ?? WHERE  `tag` = ? OR  `tag` = ?

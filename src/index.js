@@ -127,14 +127,6 @@ exports.operatorCriteria = function (value, operators, n) {
             afpl_1.Either.right(value);
     });
 };
-var Result = /** @class */ (function () {
-    function Result(sql, context) {
-        this.sql = sql;
-        this.context = context;
-    }
-    return Result;
-}());
-exports.Result = Result;
 /**
  * code turns an AST into Filters.
  */
@@ -143,7 +135,7 @@ exports.code = function (n, ctx, options) {
         return (n.conditions == null) ?
             afpl_1.Either.right(ctx) :
             exports.ensureFilterLimit(n.conditions, options.maxFilters)
-                .chain(function (con) { return exports.code(con, ctx, options); });
+                .chain(function (con) { return exports.code(con, new Context(ctx.sql + " WHERE", ctx.params), options); });
     }
     else if ((n instanceof facets_parser_1.Node.And) || (n instanceof facets_parser_1.Node.Or)) {
         var op_1 = (n instanceof facets_parser_1.Node.And) ? 'AND' : 'OR';

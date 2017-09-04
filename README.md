@@ -9,7 +9,7 @@ into
 
 ```sql
  
- -- Provides everything after the WHERE keyword
+ -- Provides everything from the WHERE keyword
   SELECT * FROM users WHERE type = 'c' AND created_by = ffan AND client.name LIKE "Bally Valentine%"
 
 ```

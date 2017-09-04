@@ -55,7 +55,7 @@ const defaultCriteria: { [key: string]: Criteria } = {
 const _op = (field: string, op: string, value: any) =>
     `${field} ${op} ${value}`;
 
-const operators: { [key: string]: (f: string, o:string, v:any) => string } = {
+const operators: { [key: string]: (f: string, o: string, v: any) => string } = {
 
     '>': _op,
     '<': _op,
@@ -204,12 +204,6 @@ export const operatorCriteria = (value: any, operators: Maybe<string[]>, n: Node
                     `"${ops.join()}"!`) :
                 Either.right<string, any>(value));
 
-export class Result {
-
-    constructor(public sql: string, public context: Context) { }
-
-}
-
 /**
  * code turns an AST into Filters.
  */
@@ -220,7 +214,7 @@ export const code = (n: Node.Node, ctx: Context, options: Options): Either<strin
         return (n.conditions == null) ?
             Either.right<string, Context>(ctx) :
             ensureFilterLimit(n.conditions, options.maxFilters)
-                .chain(con => code(con, ctx, options))
+                .chain(con => code(con, new Context(`${ctx.sql} WHERE`, ctx.params), options))
 
     } else if ((n instanceof Node.And) || (n instanceof Node.Or)) {
 

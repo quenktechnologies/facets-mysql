@@ -5,7 +5,7 @@ import { compile, Context } from '../src';
 var input = null;
 var tests = null;
 
-const ctx = new Context('SELECT * FROM ?? WHERE ', ['database.table']);
+const ctx = new Context('SELECT * FROM ??', ['database.table']);
 
 function compare(tree: any, that: any): void {
 

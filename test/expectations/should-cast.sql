@@ -1,1 +1,1 @@
-SELECT * FROM `database`.`table` WHERE  `name` = '22'
+SELECT * FROM `database`.`table` WHERE `name` = '22'
