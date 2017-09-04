@@ -1,0 +1,1 @@
+SELECT * FROM `database`.`table` WHERE   `tag` = 'old' OR  `tag` = 'new'

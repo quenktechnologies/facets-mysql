@@ -1,0 +1,29 @@
+{
+  "name": "@quenk/facets-mysql",
+  "version": "0.0.1",
+  "description": "MySQL compiler for facets",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "clean": "rm -R lib/*",
+    "build": "./node_modules/.bin/tsc -p src",
+    "test": "./node_modules/.bin/mocha --opts mocha.opts test/compile.ts"
+  },
+  "author": "Lasana Murray <dev@quenk.com> (http://quenk.com)",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/mocha": "^2.2.41",
+    "@types/node": "^7.0.18",
+    "@types/sqlstring": "^2.2.0",
+    "jison": "^0.4.17",
+    "mocha": "^3.3.0",
+    "must": "^0.13.4",
+    "ts-node": "^3.0.2",
+    "typescript": "^2.4.2"
+  },
+  "dependencies": {
+    "@quenk/facets-parser": "^0.1.1",
+    "afpl": "^0.6.3",
+    "sqlstring": "^2.2.0"
+  }
+}

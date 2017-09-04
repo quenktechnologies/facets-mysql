@@ -1,0 +1,1 @@
+SELECT * FROM `database`.`table` WHERE  `type` LIKE 'a OR 1=1'
