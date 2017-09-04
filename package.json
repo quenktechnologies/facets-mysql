@@ -1,6 +1,6 @@
 {
   "name": "@quenk/facets-mysql",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "MySQL compiler for facets",
   "main": "src/index.js",
   "types": "src/index.d.ts",
