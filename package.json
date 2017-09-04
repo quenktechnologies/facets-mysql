@@ -2,8 +2,8 @@
   "name": "@quenk/facets-mysql",
   "version": "0.0.2",
   "description": "MySQL compiler for facets",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
   "scripts": {
     "clean": "rm -R lib/*",
     "build": "./node_modules/.bin/tsc -p src",
