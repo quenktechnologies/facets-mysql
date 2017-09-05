@@ -114,7 +114,18 @@ tests = {
 
         input: 'tag:old OR tag:new OR user:%grandma OR filetype:jpeg'
 
-    }
+    },
+    'should allow any character except \'"\' between double quotes': {
+
+        input: 'type:%"%><>?:L^#@!@#%^&p:%\'for long\'!@<=a:%22>=<>#\\$%^&{()\'\`f`\\"',
+
+    },
+    'should not allow double quotes between string literals': {
+
+        input: 'type:%"type%:"dom%""',
+      onError: m=> must(m).be('Invalid Syntax')
+
+    },
 
 };
 
