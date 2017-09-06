@@ -167,7 +167,7 @@ exports.code = function (n, ctx, options) {
 var defaultOptions = {
     maxFilters: 100,
     logSyntaxErrors: true,
-    insertWhereKeyword: false,
+    insertWhereKeyword: true,
     policy: {}
 };
 exports.compile = function (src, options, ctx) {
