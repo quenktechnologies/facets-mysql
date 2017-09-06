@@ -127,6 +127,12 @@ exports.operatorCriteria = function (value, operators, n) {
             afpl_1.Either.right(value);
     });
 };
+var _where = function (sql, options) {
+    if (sql === void 0) { sql = ''; }
+    return options.insertWhereKeyword ?
+        (sql.toUpperCase().trim().split(' ').indexOf('WHERE') > -1 ? sql : sql + " WHERE") :
+        sql;
+};
 /**
  * code turns an AST into Filters.
  */
@@ -135,7 +141,7 @@ exports.code = function (n, ctx, options) {
         return (n.conditions == null) ?
             afpl_1.Either.right(ctx) :
             exports.ensureFilterLimit(n.conditions, options.maxFilters)
-                .chain(function (con) { return exports.code(con, new Context(ctx.sql + " WHERE", ctx.params), options); });
+                .chain(function (con) { return exports.code(con, new Context("" + _where(ctx.sql, options), ctx.params), options); });
     }
     else if ((n instanceof facets_parser_1.Node.And) || (n instanceof facets_parser_1.Node.Or)) {
         var op_1 = (n instanceof facets_parser_1.Node.And) ? 'AND' : 'OR';
@@ -161,6 +167,7 @@ exports.code = function (n, ctx, options) {
 var defaultOptions = {
     maxFilters: 100,
     logSyntaxErrors: true,
+    insertWhereKeyword: false,
     policy: {}
 };
 exports.compile = function (src, options, ctx) {

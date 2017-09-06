@@ -17,6 +17,7 @@ export interface Policy {
 export interface Options {
     maxFilters?: number;
     logSyntaxErrors?: boolean;
+    insertWhereKeyword?: boolean;
     policy?: Policy;
 }
 /**

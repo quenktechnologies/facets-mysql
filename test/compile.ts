@@ -123,13 +123,13 @@ tests = {
     'should not allow double quotes between string literals': {
 
         input: 'type:%"type%:"dom%""',
-      onError: m=> must(m).be('Invalid Syntax')
+        onError: m => must(m).be('Invalid Syntax')
 
     },
 
 };
 
-describe('Parser', function() {
+describe('Compiler', function() {
 
     beforeEach(function() {
 
@@ -154,6 +154,39 @@ describe('Parser', function() {
                 }
 
             });
+        });
+
+        it('should not generate where keyword by default if not specified', () => {
+
+            let ctx = new Context('SELECT * FROM table WHERE stage >= 1 AND');
+
+            compile('stage:22', { policy: { stage: 'number' } }, ctx)
+                .cata(
+                e => { throw new Error(e); },
+                c => must(c.toSQL()).be(`SELECT * FROM table WHERE stage >= 1 AND \`stage\` = 22`));
+
+        });
+
+        it('should not generate where keyword if already there', () => {
+
+            let ctx = new Context('SELECT * FROM table WHERE stage >= 1 AND');
+
+            compile('stage:22', { insertWhereKeyword: true, policy: { stage: 'number' } }, ctx)
+                .cata(
+                e => { throw new Error(e); },
+                c => must(c.toSQL()).be(`SELECT * FROM table WHERE stage >= 1 AND \`stage\` = 22`));
+
+        });
+
+        it('should generate where keyword ', () => {
+
+            let ctx = new Context('SELECT * FROM table');
+
+            compile('stage:22', { insertWhereKeyword: true, policy: { stage: 'number' } }, ctx)
+                .cata(
+                e => { throw new Error(e); },
+                c => must(c.toSQL()).be(`SELECT * FROM table WHERE \`stage\` = 22`));
+
         });
 
     });

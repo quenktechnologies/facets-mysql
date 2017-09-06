@@ -29,7 +29,8 @@ export interface Policy {
 export interface Options {
 
     maxFilters?: number
-  logSyntaxErrors?: boolean,
+    logSyntaxErrors?: boolean,
+    insertWhereKeyword?: boolean,
     policy?: Policy
 
 }
@@ -205,6 +206,10 @@ export const operatorCriteria = (value: any, operators: Maybe<string[]>, n: Node
                     `"${ops.join()}"!`) :
                 Either.right<string, any>(value));
 
+const _where = (sql: string = '', options: Options) => options.insertWhereKeyword ?
+    (sql.toUpperCase().trim().split(' ').indexOf('WHERE') > -1 ? sql : `${sql} WHERE`) :
+    sql;
+
 /**
  * code turns an AST into Filters.
  */
@@ -215,7 +220,7 @@ export const code = (n: Node.Node, ctx: Context, options: Options): Either<strin
         return (n.conditions == null) ?
             Either.right<string, Context>(ctx) :
             ensureFilterLimit(n.conditions, options.maxFilters)
-                .chain(con => code(con, new Context(`${ctx.sql} WHERE`, ctx.params), options))
+                .chain(con => code(con, new Context(`${_where(ctx.sql, options)}`, ctx.params), options))
 
     } else if ((n instanceof Node.And) || (n instanceof Node.Or)) {
 
@@ -246,7 +251,8 @@ export const code = (n: Node.Node, ctx: Context, options: Options): Either<strin
 const defaultOptions: Options = {
 
     maxFilters: 100,
-  logSyntaxErrors: true,
+    logSyntaxErrors: true,
+    insertWhereKeyword: true,
     policy: {}
 
 };
@@ -259,8 +265,8 @@ export const compile = (src: string,
         return code(parse(src), ctx, util.fuse(defaultOptions, options))
     } catch (e) {
 
-      if(options.logSyntaxErrors)
-        console.error(e.stack?e.stack:e);
+        if (options.logSyntaxErrors)
+            console.error(e.stack ? e.stack : e);
         return Either.left<string, Context>(`Invalid Syntax`);
 
     }
