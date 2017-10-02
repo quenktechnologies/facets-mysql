@@ -66,7 +66,7 @@ const operators: { [key: string]: (f: string, o: string, v: any) => string } = {
     '<=': _op,
     '=': _op,
     '!=': _op,
-    '%': (field: string, _op: string, value: any) => `${field} LIKE ${value}`
+    '%': (field: string, _op: string, value: any) => `${field} LIKE %${value}%`
 
 }
 
@@ -127,7 +127,7 @@ export const ensureFilterLimit = (n: Node.Condition, max: number)
 export const ensureFieldIsInPolicy = (n: Node.Filter, policy: Policy): Either<string, Node.Filter> => {
 
     if (!policy.hasOwnProperty(n.field))
-        return console.error('dont have ', n.field, policy) || Either.left<string, Node.Filter>(`Unknown column name '${n.field}'!`);
+        return Either.left<string, Node.Filter>(`Unknown column name '${n.field}'!`);
     else
         return Either.right<string, Node.Filter>(n);
 

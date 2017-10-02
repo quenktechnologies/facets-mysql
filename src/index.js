@@ -24,7 +24,7 @@ var operators = {
     '<=': _op,
     '=': _op,
     '!=': _op,
-    '%': function (field, _op, value) { return field + " LIKE " + value; }
+    '%': function (field, _op, value) { return field + " LIKE %" + value + "%"; }
 };
 /**
  * Context of the filters being interpreted.
@@ -70,7 +70,7 @@ exports.ensureFilterLimit = function (n, max) {
 };
 exports.ensureFieldIsInPolicy = function (n, policy) {
     if (!policy.hasOwnProperty(n.field))
-        return console.error('dont have ', n.field, policy) || afpl_1.Either.left("Unknown column name '" + n.field + "'!");
+        return afpl_1.Either.left("Unknown column name '" + n.field + "'!");
     else
         return afpl_1.Either.right(n);
 };
