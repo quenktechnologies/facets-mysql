@@ -24,7 +24,7 @@ var operators = {
     '<=': _op,
     '=': _op,
     '!=': _op,
-    '%': function (field, _op, value) { return field + " LIKE %" + value + "%"; }
+    '%': function (field, _op, value) { return field + " LIKE '%" + value + "%'"; }
 };
 /**
  * Context of the filters being interpreted.

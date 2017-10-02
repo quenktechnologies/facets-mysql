@@ -66,7 +66,7 @@ const operators: { [key: string]: (f: string, o: string, v: any) => string } = {
     '<=': _op,
     '=': _op,
     '!=': _op,
-    '%': (field: string, _op: string, value: any) => `${field} LIKE %${value}%`
+    '%': (field: string, _op: string, value: any) => `${field} LIKE '%${value}%'`
 
 }
 
