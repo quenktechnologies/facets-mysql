@@ -1,1 +1,1 @@
-SELECT * FROM ?? WHERE    `tag` = ? OR  `tag` = ? OR  `user` LIKE ? OR  `filetype` = ?
+SELECT * FROM ?? WHERE    `tag` = ? OR  `tag` = ? OR  `user` LIKE CONCAT('%',?,'%') OR  `filetype` = ?

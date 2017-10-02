@@ -53,6 +53,7 @@ const opts = {
         name: { type: 'string', cast: String },
         age: 'number',
         tag: 'string',
+        religion: {type:'string', default:'%'},
         active: 'boolean',
         rank: 'number',
         'namespace.discount': 'number',
@@ -126,6 +127,11 @@ tests = {
         onError: m => must(m).be('Invalid Syntax')
 
     },
+  'should allow LIKE defaults': {
+
+    input: 'religion:"hip hop"'
+
+  }
 
 };
 
