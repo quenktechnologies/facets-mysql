@@ -1,1 +1,1 @@
-SELECT * FROM ?? `name` = ?
+SELECT * FROM ?? WHERE `name` = ?

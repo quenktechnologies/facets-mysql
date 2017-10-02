@@ -13,7 +13,8 @@ export interface Criteria {
     type?: string,
     pattern?: string,
     func?: (a: any) => any,
-    operators?: string[]
+    operators?: string[],
+    default?: string
 
 }
 
@@ -126,11 +127,27 @@ export const ensureFilterLimit = (n: Node.Condition, max: number)
 export const ensureFieldIsInPolicy = (n: Node.Filter, policy: Policy): Either<string, Node.Filter> => {
 
     if (!policy.hasOwnProperty(n.field))
-        return Either.left<string, Node.Filter>(`Unknown column name '${n.field}'!`);
+        return console.error('dont have ', n.field, policy) || Either.left<string, Node.Filter>(`Unknown column name '${n.field}'!`);
     else
         return Either.right<string, Node.Filter>(n);
 
 }
+
+const _ifDefault = (n: Node.Filter) => (op: string) =>
+    n.operator === 'default' ? new Node.Filter(n.field, op, n.value, n.location) : n;
+
+/**
+ * ensureOperator allows the default operator to be specified.
+ */
+export const ensureOperator = (std: Standard) => (n: Node.Filter): Node.Filter => {
+
+    let criteria = (typeof std === 'string') ? defaultCriteria[std] : std;
+
+    return Maybe
+        .fromAny(criteria.default)
+        .cata(() => _ifDefault(n)('='), _ifDefault(n));
+
+};
 
 export const applyPolicy = (value: Node.Value, n: Node.Filter, std: Standard): Either<string, any> => {
 
@@ -161,6 +178,8 @@ export const castCriteria = (value: any, typ: Maybe<Function>, _n: Node.Filter)
     typ.cata<Either<string, any>>(
         () => Either.right<string, any>(value),
         f => Either.right<string, any>(f(value)));
+
+
 
 /**
  * typeCriteria checks if the value is of the allowed type for the field.
@@ -234,6 +253,7 @@ export const code = (n: Node.Node, ctx: Context, options: Options): Either<strin
     } else if (n instanceof Node.Filter) {
 
         return ensureFieldIsInPolicy(n, options.policy)
+            .map(ensureOperator(options.policy[n.field]))
             .chain(n =>
                 applyPolicy(n.value, n, options.policy[n.field])
                     .map(value =>

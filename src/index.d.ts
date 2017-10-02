@@ -7,6 +7,7 @@ export interface Criteria {
     pattern?: string;
     func?: (a: any) => any;
     operators?: string[];
+    default?: string;
 }
 export interface Policy {
     [key: string]: Standard;
@@ -39,6 +40,10 @@ export declare const count: (n: Node.Node) => number;
  */
 export declare const ensureFilterLimit: (n: Node.Condition, max: number) => Either<string, Node.Condition>;
 export declare const ensureFieldIsInPolicy: (n: Node.Filter, policy: Policy) => Either<string, Node.Filter>;
+/**
+ * ensureOperator allows the default operator to be specified.
+ */
+export declare const ensureOperator: (std: Standard) => (n: Node.Filter) => Node.Filter;
 export declare const applyPolicy: (value: Node.Value, n: Node.Filter, std: Standard) => Either<string, any>;
 export declare const castCriteria: (value: any, typ: Maybe<Function>, _n: Node.Filter) => Either<string, any>;
 /**

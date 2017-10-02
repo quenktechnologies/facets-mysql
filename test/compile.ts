@@ -73,7 +73,7 @@ tests = {
     'should obey the policy': {
 
         input: 'phantom_field:anything',
-        onError: e => must(e.message).be(`Unknown column name phantom_field!`)
+        onError: e => must(e).be(`Unknown column name 'phantom_field'!`)
 
     },
     'should correctly escape a single filter': {
@@ -84,7 +84,7 @@ tests = {
     'should reject types that do not match': {
 
         input: 'user:>=22',
-        onError: e => must(e.message).be(`user must be type 'string' got 'number'`)
+        onError: e => must(e).be(`user must be type 'string' got 'number'`)
 
     },
     'should cast': {

@@ -70,10 +70,22 @@ exports.ensureFilterLimit = function (n, max) {
 };
 exports.ensureFieldIsInPolicy = function (n, policy) {
     if (!policy.hasOwnProperty(n.field))
-        return afpl_1.Either.left("Unknown column name '" + n.field + "'!");
+        return console.error('dont have ', n.field, policy) || afpl_1.Either.left("Unknown column name '" + n.field + "'!");
     else
         return afpl_1.Either.right(n);
 };
+var _ifDefault = function (n) { return function (op) {
+    return n.operator === 'default' ? new facets_parser_1.Node.Filter(n.field, op, n.value, n.location) : n;
+}; };
+/**
+ * ensureOperator allows the default operator to be specified.
+ */
+exports.ensureOperator = function (std) { return function (n) {
+    var criteria = (typeof std === 'string') ? defaultCriteria[std] : std;
+    return afpl_1.Maybe
+        .fromAny(criteria.default)
+        .cata(function () { return _ifDefault(n)('='); }, _ifDefault(n));
+}; };
 exports.applyPolicy = function (value, n, std) {
     var criteria = (typeof std === 'string') ? defaultCriteria[std] : std;
     if (value instanceof facets_parser_1.Node.List) {
@@ -153,6 +165,7 @@ exports.code = function (n, ctx, options) {
     }
     else if (n instanceof facets_parser_1.Node.Filter) {
         return exports.ensureFieldIsInPolicy(n, options.policy)
+            .map(exports.ensureOperator(options.policy[n.field]))
             .chain(function (n) {
             return exports.applyPolicy(n.value, n, options.policy[n.field])
                 .map(function (value) {
