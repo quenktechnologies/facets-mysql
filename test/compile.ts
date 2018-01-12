@@ -1,11 +1,88 @@
 import * as must from 'must/register';
 import * as fs from 'fs';
 import * as verticies from '../src/vertices';
-import { Context, compile, convert } from '../src';
+import * as src from '../src';
+import { Context, Policies, compile, convert } from '../src';
 
 var input = null;
 var tests = null;
 var params = [];
+
+const policies: Policies<string> = {
+
+    type: {
+
+        type: 'string',
+        operators: ['='],
+        vertex: verticies.like
+
+    },
+    name: {
+
+        type: 'string',
+        operators: ['='],
+        vertex: verticies.like
+
+    },
+    age: {
+
+        type: 'number',
+        operators: ['=', '>=', '>=', '>', '<'],
+        vertex: verticies.operator
+
+    },
+    tag: {
+
+        type: 'string',
+        operators: ['='],
+        vertex: verticies.like
+
+    },
+    religion: {
+
+        type: 'string',
+        operators: ['='],
+        vertex: verticies.like
+
+    },
+    active: {
+
+        type: 'boolean',
+        operators: ['=', '>=', '>=', '>', '<'],
+        vertex: verticies.operator
+
+    },
+    rank: {
+
+        type: 'number',
+        operators: ['=', '>=', '>=', '>', '<'],
+        vertex: verticies.operator
+
+    },
+    'namespace.discount': {
+
+        type: 'number',
+        operators: ['=', '>=', '>=', '<=', '>=', '<'],
+        vertex: verticies.operator
+
+    },
+    user: {
+
+        type: 'string',
+        operators: ['='],
+        vertex: verticies.like
+
+    },
+    price: {
+
+        type: 'number',
+        operators: ['=', '>=', '>=', '>', '<'],
+        vertex: verticies.operator
+
+    },
+    filetype: 'string'
+
+}
 
 const ctx: Context<string> = {
 
@@ -14,85 +91,11 @@ const ctx: Context<string> = {
         maxFilters: 100
 
     },
-  available: verticies.availablePolicies,
+    policies: verticies.availablePolicies,
     and: verticies.and,
     or: verticies.or,
-    empty: verticies.empty,
-    policies: {
+    empty: verticies.empty
 
-        type: {
-
-            type: 'string',
-            operators: ['='],
-            vertex: verticies.like
-
-        },
-        name: {
-
-            type: 'string',
-            operators: ['='],
-            vertex: verticies.like
-
-        },
-        age: {
-
-            type: 'number',
-            operators: ['=', '>=', '>=', '>', '<'],
-            vertex: verticies.operator
-
-        },
-        tag: {
-
-            type: 'string',
-            operators: ['='],
-            vertex: verticies.like
-
-        },
-        religion: {
-
-            type: 'string',
-            operators: ['='],
-            vertex: verticies.like
-
-        },
-        active: {
-
-            type: 'boolean',
-            operators: ['=', '>=', '>=', '>', '<'],
-            vertex: verticies.operator
-
-        },
-        rank: {
-
-            type: 'number',
-            operators: ['=', '>=', '>=', '>', '<'],
-            vertex: verticies.operator
-
-        },
-        'namespace.discount': {
-
-            type: 'number',
-            operators: ['=', '>=', '>=', '<=', '>=', '<'],
-            vertex: verticies.operator
-
-        },
-        user: {
-
-            type: 'string',
-            operators: ['='],
-            vertex: verticies.like
-
-        },
-        price: {
-
-            type: 'number',
-            operators: ['=', '>=', '>=', '>', '<'],
-            vertex: verticies.operator
-
-        },
-             filetype: 'string'
-
-    }
 };
 
 function compare(tree: any, that: any): void {
@@ -106,12 +109,12 @@ function makeTest(test, index) {
     var file = index.replace(/\s/g, '-');
 
     if (process.env.GENERATE) {
-        (compile(ctx)(test.input))
+        (compile(ctx)(policies)(test.input))
             .chain(sql => {
 
                 fs.writeFileSync(`./test/expectations/${file}.sql`, sql);
 
-                return (convert(ctx)(test.input))
+                return (convert(ctx)(policies)(test.input))
                     .chain((c: verticies.SQLVertex) => c.escape(params))
                     .map(sql =>
                         fs.writeFileSync(`./test/expectations/${file}.escaped.sql`, sql));
@@ -121,17 +124,17 @@ function makeTest(test, index) {
 
     } else if (!test.skip) {
 
-        (compile(ctx)(test.input))
+        (compile(ctx)(policies)(test.input))
             .chain(sql => {
 
                 compare(sql, fs.readFileSync(`./test/expectations/${file}.sql`, {
                     encoding: 'utf8'
                 }));
 
-                return (convert(ctx)(test.input))
+                return (convert(ctx)(policies)(test.input))
                     .chain((c: verticies.SQLVertex) => c.escape(params))
                     .map(sql =>
-                        compare(sql, fs.readFileSync(`./test/expectations/${file}.sql`, {
+                        compare(sql, fs.readFileSync(`./test/expectations/${file}.escaped.sql`, {
                             encoding: 'utf8'
                         })));
 
@@ -147,7 +150,6 @@ function makeTest(test, index) {
 
     }
 
-
 }
 
 tests = {
@@ -161,7 +163,11 @@ tests = {
     'should obey the policy': {
 
         input: 'phantom_field:anything',
-        onError: e => must(e.message).be(`Unknown column name 'phantom_field'!`)
+        onError: e => must(e).eql(src.invalidFilterFieldErr({
+            field: 'phantom_field',
+            operator: 'default',
+            value: 'anything'
+        }))
 
     },
     'should correctly escape a single filter': {
@@ -172,7 +178,12 @@ tests = {
     'should reject types that do not match': {
 
         input: 'user:>=22',
-        onError: e => must(e.message).be(`user must be type 'string' got 'number'`)
+        onError: e => must(e).eql(src.invalidFilterTypeErr({
+            field: 'user',
+            operator: '>=',
+            value: 22
+
+        }, 'string'))
 
     },
     'should parse three filters': {
@@ -206,7 +217,7 @@ tests = {
     'should not allow double quotes between string literals': {
 
         input: 'type:"type%:"dom%""',
-        onError: e => must(e.message).be('Invalid Syntax')
+        onError: e => must(typeof e.message).be('string')
 
     },
     'should allow LIKE defaults': {

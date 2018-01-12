@@ -22,12 +22,6 @@ export interface Context<F> {
      */
     options: Options;
     /**
-     * available policies that can be specified via a string
-     */
-    available: {
-        [key: string]: Policy<F>;
-    };
-    /**
      * empty function for empty strings.
      */
     empty: EmptyProvider<F>;
@@ -40,12 +34,27 @@ export interface Context<F> {
      */
     or: OrProvider<F>;
     /**
-     * policies for each field allowed.
+     * policies that can be defined via strings.
+     * each field allowed.
      */
-    policies: {
-        [key: string]: string | Policy<F>;
-    };
+    policies: PolicyMap<F>;
 }
+/**
+ * PolicyMap maps a string to a policy.
+ */
+export interface PolicyMap<F> {
+    [key: string]: Policy<F>;
+}
+/**
+ * Policies used during compilation.
+ */
+export interface Policies<F> {
+    [key: string]: PolicySpec<F>;
+}
+/**
+ * PolicySpec
+ */
+export declare type PolicySpec<F> = string | Policy<F>;
 /**
  * Policy provides information relating to how a filter should
  * be treated after parsing.
@@ -79,6 +88,7 @@ export declare type Source = string;
  * Options used during the compilation process.
  */
 export interface Options {
+    [key: string]: any;
     /**
      * maxFilters allowed to specified in the source.
      */
@@ -168,12 +178,12 @@ export declare const value2JS: <J>(v: Node.Value) => J;
 /**
  * ast2Vertex converts an AST into a graph of verticies starting at the root node.
  */
-export declare const ast2Vertex: <F>(ctx: Context<F>) => (n: Node.Node) => Either<Err, Vertex<F>>;
+export declare const ast2Vertex: <F>(ctx: Context<F>) => (policies: Policies<F>) => (n: Node.Node) => Either<Err, Vertex<F>>;
 /**
  * convert source text to a Vertex.
  */
-export declare const convert: <F>(ctx: Context<F>) => (source: string) => Either<Err, Vertex<F>>;
+export declare const convert: <F>(ctx: Context<F>) => (policies: Policies<F>) => (source: string) => Either<Err, Vertex<F>>;
 /**
  * compile a string into a usable string of filters.
  */
-export declare const compile: <F>(ctx: Context<F>) => (source: string) => Either<Err, F>;
+export declare const compile: <F>(ctx: Context<F>) => (policies: Policies<F>) => (source: string) => Either<Err, F>;

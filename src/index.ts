@@ -6,6 +6,16 @@ import { Maybe } from 'afpl/lib/monad/Maybe';
 const FilterNode = Node.Filter;
 export { FilterNode, parse };
 
+export const ERR_MAX_FILTERS_EXCEEDED = 'Max {max} filters are allowed, got {n}!';
+
+export const ERR_INVALID_FIELD = 'Invalid field {field}!';
+
+export const ERR_INVALID_FILED_OPERATOR =
+    'Invalid operator \'{operator}\' used with field \'{field}\'!';
+
+export const ERR_INVALID_FIELD_TYPE =
+    'Invalid type \'${type}\' for field \'{field}\', expected type of \'{typ}\'!'
+
 /**
  * defaultOptions 
  */
@@ -33,11 +43,6 @@ export interface Context<F> {
     options: Options,
 
     /**
-     * available policies that can be specified via a string
-     */
-    available: { [key: string]: Policy<F> }
-
-    /**
      * empty function for empty strings.
      */
     empty: EmptyProvider<F>,
@@ -53,11 +58,35 @@ export interface Context<F> {
     or: OrProvider<F>
 
     /**
-     * policies for each field allowed.
+     * policies that can be defined via strings.
+     * each field allowed.
      */
-    policies: { [key: string]: string | Policy<F> }
+    policies: PolicyMap<F>
 
 }
+
+/**
+ * PolicyMap maps a string to a policy.
+ */
+export interface PolicyMap<F> {
+
+    [key: string]: Policy<F>
+
+}
+
+/**
+ * Policies used during compilation.
+ */
+export interface Policies<F> {
+
+    [key: string]: PolicySpec<F>
+
+}
+
+/**
+ * PolicySpec 
+ */
+export type PolicySpec<F> = string | Policy<F>;
 
 /**
  * Policy provides information relating to how a filter should 
@@ -99,6 +128,8 @@ export type Source = string;
  * Options used during the compilation process.
  */
 export interface Options {
+
+    [key: string]: any
 
     /**
      * maxFilters allowed to specified in the source.
@@ -192,19 +223,19 @@ export const maxFilterExceededErr = (n: number, max: number) =>
 /**
  * invalidFilterFieldErr invalid indicates the filter supplied is not supported.
  */
-const invalidFilterFieldErr = <V>({ field, operator, value }: FilterSpec<V>) =>
+export const invalidFilterFieldErr = <V>({ field, operator, value }: FilterSpec<V>) =>
     ({ field, operator, value, message: `Invalid field ${field}!` });
 
 /**
  * invalidFilterOperatorErr indicates an invalid operator was supplied.
  */
-const invalidFilterOperatorErr = <V>({ field, operator, value }: FilterSpec<V>) =>
+export const invalidFilterOperatorErr = <V>({ field, operator, value }: FilterSpec<V>) =>
     ({ field, operator, value, message: `Invalid operator '${operator}' used with field '${field}'!` });
 
 /**
- * invalidFilterType indicates the value used with the filter is the incorrect type.
+ * invalidFilterTypeErr indicates the value used with the filter is the incorrect type.
  */
-const invalidFilterType = <V>({ field, operator, value }: FilterSpec<V>, typ: string) =>
+export const invalidFilterTypeErr = <V>({ field, operator, value }: FilterSpec<V>, typ: string) =>
     ({
         field,
         operator,
@@ -255,66 +286,74 @@ export const value2JS = <J>(v: Node.Value): J => match(v)
 /**
  * ast2Vertex converts an AST into a graph of verticies starting at the root node.
  */
-export const ast2Vertex = <F>(ctx: Context<F>) => (n: Node.Node): Either<Err, Vertex<F>> =>
+export const ast2Vertex = <F>(ctx: Context<F>) => (policies: Policies<F>) => (n: Node.Node)
+    : Either<Err, Vertex<F>> =>
     match<Either<Err, Vertex<F>>>(n)
-        .caseOf(Node.Conditions, parseRoot<F>(ctx))
-        .caseOf(Node.Filter, parseFilter<F>(ctx))
-        .caseOf(Node.And, parseAndOr<F>(ctx))
-        .caseOf(Node.Or, parseAndOr<F>(ctx))
+        .caseOf(Node.Conditions, parseRoot<F>(ctx)(policies))
+        .caseOf(Node.Filter, parseFilter<F>(ctx)(policies))
+        .caseOf(Node.And, parseAndOr<F>(ctx)(policies))
+        .caseOf(Node.Or, parseAndOr<F>(ctx)(policies))
         .orElse(() => Either.left<Err, Vertex<F>>({ message: `Unsupported node type ${n.type}!` }))
         .end();
 
-const parseRoot = <F>(ctx: Context<F>) => (n: Node.Conditions) =>
+const parseRoot = <F>(ctx: Context<F>) => (policies: Policies<F>) => (n: Node.Conditions) =>
     Maybe
         .fromAny(n.conditions)
         .map((c: Node.Condition) =>
             ensureFilterLimit(c, ctx.options.maxFilters)
-                .chain(c => ast2Vertex<F>(ctx)(c)))
+                .chain(c => ast2Vertex<F>(ctx)(policies)(c)))
         .orJust(() => right<Err, Vertex<F>>(ctx.empty()))
         .get();
 
-const parseAndOr = <F>(ctx: Context<F>) => (n: AndOr): Either<Err, Vertex<F>> =>
-    (ast2Vertex<F>(ctx)(n.left))
+const parseAndOr = <F>(ctx: Context<F>) => (policies: Policies<F>) => (n: AndOr)
+    : Either<Err, Vertex<F>> =>
+    (ast2Vertex<F>(ctx)(policies)(n.left))
         .chain(lv =>
-            (ast2Vertex<F>(ctx)(n.right))
+            (ast2Vertex<F>(ctx)(policies)(n.right))
                 .map(rv => match<Vertex<F>>(n)
                     .caseOf(Node.And, () => ctx.and(ctx)(lv)(rv))
                     .caseOf(Node.Or, () => ctx.or(ctx)(lv)(rv))
                     .end()));
 
-const parseFilter = <F>(ctx: Context<F>) => ({ field, operator, value }: Node.Filter)
+const parseFilter = <F>(ctx: Context<F>) => (policies: Policies<F>) => ({ field, operator, value }: Node.Filter)
     : Either<Err, Vertex<F>> =>
     Maybe
         .fromAny(value2JS(value))
-        .chain((value: F) =>
+        .chain(<V>(value: V) =>
             Maybe
-                .fromAny(ctx.policies[field])
-                .chain((p: string | Policy<F>) => (typeof p === 'string') ?
-                    Maybe.fromAny(ctx.available[p]) :
-                    Maybe.fromAny(p))
+                .fromAny(policies[field])
+                .chain(resolvePolicy(ctx.policies))
                 .map((p: Policy<F>): Either<Err, Vertex<F>> =>
                     !checkType(p.type, value) ?
-                        left<Err, Vertex<F>>(invalidFilterType({ field, operator, value }, p.type)) :
+                        left<Err, Vertex<F>>(invalidFilterTypeErr({ field, operator, value }, p.type)) :
                         (operator === 'default') ?
                             right<Err, Vertex<F>>((p.vertex(ctx)({ field, operator: p.operators[0], value }))) :
                             (p.operators.indexOf(operator) > -1) ?
                                 right<Err, Vertex<F>>(p.vertex(ctx)({ field, operator, value })) :
-                                left<Err, Vertex<F>>(invalidFilterOperatorErr<F>({ field, operator, value })))
-                .orJust(() => left<Err, Vertex<F>>(invalidFilterFieldErr<F>({ field, operator, value }))))
+                                left<Err, Vertex<F>>(invalidFilterOperatorErr<V>({ field, operator, value })))
+                .orJust(() => left<Err, Vertex<F>>(invalidFilterFieldErr<V>({ field, operator, value }))))
         .get();
+
+const resolvePolicy = <F>(available: PolicyMap<F>) => (specified: PolicySpec<F>)
+    : Maybe<Policy<F>> =>
+    Maybe
+        .fromBoolean((typeof specified === 'string'))
+        .chain(() => Maybe.fromAny(available[<string>specified]))
+        .orJust(() => <Policy<F>>specified);
 
 /**
  * convert source text to a Vertex.
  */
-export const convert = <F>(ctx: Context<F>) => (source: Source): Either<Err, Vertex<F>> => {
+export const convert = <F>(ctx: Context<F>) => (policies: Policies<F>) => (source: Source)
+    : Either<Err, Vertex<F>> => {
 
     try {
 
-        return (ast2Vertex<F>(ctx)(parse(source)));
+        return (ast2Vertex<F>(ctx)(policies)(parse(source)));
 
     } catch (e) {
 
-        return Either.left<Err, Vertex<F>>({ message: e.message });
+        return Either.left<Err, Vertex<F>>(e);
 
     }
 
@@ -323,5 +362,7 @@ export const convert = <F>(ctx: Context<F>) => (source: Source): Either<Err, Ver
 /**
  * compile a string into a usable string of filters.
  */
-export const compile = <F>(ctx: Context<F>) => (source: Source): Either<Err, F> =>
-    (convert(ctx)(source)).chain((v: Vertex<F>) => v.compile());
+export const compile = <F>(ctx: Context<F>) => (policies: Policies<F>) => (source: Source)
+    : Either<Err, F> =>
+    (convert(ctx)(policies)(source))
+        .chain((v: Vertex<F>) => v.compile());
