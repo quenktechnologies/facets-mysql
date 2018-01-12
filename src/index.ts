@@ -1,295 +1,327 @@
 import { parse, Node } from '@quenk/facets-parser';
-import { Either, Maybe, util } from 'afpl';
-import * as SQLString from 'sqlstring';
+import { match } from '@quenk/match';
+import { Either, left, right } from 'afpl/lib/monad/Either';
+import { Maybe } from 'afpl/lib/monad/Maybe';
 
-export type Standard
-    = string
-    | Criteria
-    ;
+const FilterNode = Node.Filter;
+export { FilterNode, parse };
 
-export interface Criteria {
+/**
+ * defaultOptions 
+ */
+export const defaultOptions = {
 
-    cast?: Function,
-    type?: string,
-    pattern?: string,
-    func?: (a: any) => any,
-    operators?: string[],
-    default?: string
+    maxFilters: 100,
 
-}
+};
 
-export interface Policy {
+type AndOr = Node.And | Node.Or;
 
-    [key: string]: Standard
+/**
+ * Context represents the context the compilation
+ * takes place in.
+ *
+ * It specifies the options and functions required to complete
+ * the transformation process.
+ *
+ */
+export interface Context<F> {
+
+    /**
+     * options for compilation.
+     */
+    options: Options,
+
+    /**
+     * available policies that can be specified via a string
+     */
+    available: { [key: string]: Policy<F> }
+
+    /**
+     * empty function for empty strings.
+     */
+    empty: EmptyProvider<F>,
+
+    /**
+     * and function used to construct an 'and' unit.
+     */
+    and: AndProvider<F>,
+
+    /**
+     * or function used to construct an 'or' unit.
+     */
+    or: OrProvider<F>
+
+    /**
+     * policies for each field allowed.
+     */
+    policies: { [key: string]: string | Policy<F> }
 
 }
 
 /**
- * Options you can pass to the compiler
+ * Policy provides information relating to how a filter should 
+ * be treated after parsing.
+ */
+export interface Policy<F> {
+
+    /**
+     * type indicates what JS type the value should be.
+     *
+     * If the value does not match the type it is rejected.
+     */
+    type: string,
+
+    /**
+     * operators is a list of operators allowed.
+     * The first is used as the default when 'default' is specified.
+     */
+    operators: Operator[],
+
+    /**
+     * vertex provides a function for constructing the field's vertex.
+     */
+    vertex: VertexProvider<F>
+
+}
+
+/**
+ * Operator for the filter condition.
+ */
+export type Operator = string;
+
+/**
+ * Source text for parsing and compilation.
+ */
+export type Source = string;
+
+/**
+ * Options used during the compilation process.
  */
 export interface Options {
 
+    /**
+     * maxFilters allowed to specified in the source.
+     */
     maxFilters?: number
-    logSyntaxErrors?: boolean,
-    insertWhereKeyword?: boolean,
-    policy?: Policy
-
-}
-
-const defaultCriteria: { [key: string]: Criteria } = {
-
-    string: {
-
-        type: 'string'
-
-    },
-    number: {
-
-        type: 'number'
-
-    },
-    boolean: {
-
-        type: 'boolean'
-
-    }
-}
-
-const _op = (field: string, op: string, value: any) =>
-    `${field} ${op} ${value}`;
-
-const operators: { [key: string]: (f: string, o: string, v: any) => string } = {
-
-    '>': _op,
-    '<': _op,
-    '>=': _op,
-    '<=': _op,
-    '=': _op,
-    '!=': _op,
-    '%': (field: string, _op: string, value: any) => `${field} LIKE CONCAT('%',${value},'%')`
 
 }
 
 /**
- * Context of the filters being interpreted.
+ * VertexProvider provides the unit used to compile a filter.
  */
-export class Context {
+export type VertexProvider<F> =
+    (c: Context<F>) => (filter: FilterSpec<any>) => Vertex<F>;
 
-    constructor(public sql: string, public params: any[] = []) { }
+/**
+ * FilterSpec holds information about a Filter being processed.
+ */
+export interface FilterSpec<V> { field: string, operator: string, value: V };
 
-    toString() {
+/**
+ * EmptyProvider provides the empty unit.
+ */
+export type EmptyProvider<F> = () => Vertex<F>;
 
-        return this.sql;
+/**
+ * AndProvider provides the unit for compiling 'and' expressions.
+ */
+export type AndProvider<F> =
+    (c: Context<F>) => (left: Vertex<F>) => (right: Vertex<F>) => Vertex<F>;
 
-    }
+/**
+ * OrProvider provides the unit for compiling 'or' expressions. 
+ */
+export type OrProvider<F> =
+    (c: Context<F>) => (left: Vertex<F>) => (right: Vertex<F>) => Vertex<F>;
 
-    toSQL() {
+/**
+ * Vertex is a chain of verticies that ultimately form the filter to be 
+ * used in the application.
+ */
+export interface Vertex<F> {
 
-        return SQLString.format(this.sql, this.params);
-
-    }
+    /**
+     * compile this Vertex returning it's native filter representation.
+     */
+    compile(): Either<Err, F>
 
 }
 
 /**
- * count the number of filters specified.
+ * Err indicates something went wrong.
  */
-export const count = (n: Node.Node): number => {
+export interface Err {
 
-    if ((n instanceof Node.And) || (n instanceof Node.Or))
-        return count(n.left) + count(n.right)
-    else if (n instanceof Node.Filter)
-        return 1
-    else
-        return 0
+    /**
+     * message of the error.
+     */
+    message: string
 
 }
+
+/**
+ * FilterErr 
+ */
+export interface FilterErr<V> extends Err {
+
+    /**
+     * field the filter applies to.
+     */
+    field: string,
+
+    /**
+     * operator used.
+     */
+    operator: string,
+
+    /**
+     * value used.
+     */
+    value: V
+
+}
+
+/**
+ * maxFilterExceededErr indicates the maximum amount of filters allowed
+ * has been surpassed.
+ */
+export const maxFilterExceededErr = (n: number, max: number) =>
+    ({ n, max, message: `Max ${max} filters are allowed, got ${n}!` });
+
+/**
+ * invalidFilterFieldErr invalid indicates the filter supplied is not supported.
+ */
+const invalidFilterFieldErr = <V>({ field, operator, value }: FilterSpec<V>) =>
+    ({ field, operator, value, message: `Invalid field ${field}!` });
+
+/**
+ * invalidFilterOperatorErr indicates an invalid operator was supplied.
+ */
+const invalidFilterOperatorErr = <V>({ field, operator, value }: FilterSpec<V>) =>
+    ({ field, operator, value, message: `Invalid operator '${operator}' used with field '${field}'!` });
+
+/**
+ * invalidFilterType indicates the value used with the filter is the incorrect type.
+ */
+const invalidFilterType = <V>({ field, operator, value }: FilterSpec<V>, typ: string) =>
+    ({
+        field,
+        operator,
+        value,
+        message: `Invalid type '${typeof value}' for field '${field}', expected type of '${typ}'!`
+    });
+
+/**
+ * checkType to ensure they match.
+ */
+const checkType = <V>(typ: string, value: V): boolean =>
+    (Array.isArray(value) && typ === 'array') ? true :
+        (typeof value === typ) ? true : false
+
+/**
+ * count the number of filters in the AST.
+ */
+export const count = (n: Node.Node): number => match<number>(n)
+    .caseOf(Node.And, (n: Node.And) => count(n.left) + count(n.right))
+    .caseOf(Node.Or, (n: Node.Or) => count(n.left) + count(n.right))
+    .caseOf(Node.Filter, () => 1)
+    .orElse(() => 0)
+    .end();
 
 /**
  * ensureFilterLimit prevents abuse via excessively long queries.
  */
 export const ensureFilterLimit = (n: Node.Condition, max: number)
-    : Either<string, Node.Condition> => {
-
-    if (max <= 0)
-        return Either.right<string, Node.Condition>(n);
-
-    let c = count(n);
-
-    if (c > max)
-        return Either.left<string, Node.Condition>(`Too many filters specified ` +
-            `max:${max} received: ${c}`);
-    else
-        return Either.right<string, Node.Condition>(n);
-
-}
-
-export const ensureFieldIsInPolicy = (n: Node.Filter, policy: Policy): Either<string, Node.Filter> => {
-
-    if (!policy.hasOwnProperty(n.field))
-        return Either.left<string, Node.Filter>(`Unknown column name '${n.field}'!`);
-    else
-        return Either.right<string, Node.Filter>(n);
-
-}
-
-const _ifDefault = (n: Node.Filter) => (op: string) =>
-    n.operator === 'default' ? new Node.Filter(n.field, op, n.value, n.location) : n;
+    : Either<Err, Node.Condition> =>
+    (max <= 0) ?
+        Either
+            .right<Err, Node.Condition>(n) :
+        Either
+            .right<Err, number>(count(n))
+            .chain(c => (c > max) ?
+                Either
+                    .left<Err, Node.Condition>(maxFilterExceededErr(c, max)) :
+                Either
+                    .right<Err, Node.Condition>(n));
+/**
+ * value2JS converts a parseed value node into a JS value.
+ */
+export const value2JS = <J>(v: Node.Value): J => match(v)
+    .caseOf(Node.List, ({ members }: Node.List) => members.map(value2JS))
+    .caseOf(Node.Literal, ({ value }: Node.Literal) => value)
+    .end();
 
 /**
- * ensureOperator allows the default operator to be specified.
+ * ast2Vertex converts an AST into a graph of verticies starting at the root node.
  */
-export const ensureOperator = (std: Standard) => (n: Node.Filter): Node.Filter => {
+export const ast2Vertex = <F>(ctx: Context<F>) => (n: Node.Node): Either<Err, Vertex<F>> =>
+    match<Either<Err, Vertex<F>>>(n)
+        .caseOf(Node.Conditions, parseRoot<F>(ctx))
+        .caseOf(Node.Filter, parseFilter<F>(ctx))
+        .caseOf(Node.And, parseAndOr<F>(ctx))
+        .caseOf(Node.Or, parseAndOr<F>(ctx))
+        .orElse(() => Either.left<Err, Vertex<F>>({ message: `Unsupported node type ${n.type}!` }))
+        .end();
 
-    let criteria = (typeof std === 'string') ? defaultCriteria[std] : std;
+const parseRoot = <F>(ctx: Context<F>) => (n: Node.Conditions) =>
+    Maybe
+        .fromAny(n.conditions)
+        .map((c: Node.Condition) =>
+            ensureFilterLimit(c, ctx.options.maxFilters)
+                .chain(c => ast2Vertex<F>(ctx)(c)))
+        .orJust(() => right<Err, Vertex<F>>(ctx.empty()))
+        .get();
 
-    return Maybe
-        .fromAny(criteria.default)
-        .cata(() => _ifDefault(n)('='), _ifDefault(n));
+const parseAndOr = <F>(ctx: Context<F>) => (n: AndOr): Either<Err, Vertex<F>> =>
+    (ast2Vertex<F>(ctx)(n.left))
+        .chain(lv =>
+            (ast2Vertex<F>(ctx)(n.right))
+                .map(rv => match<Vertex<F>>(n)
+                    .caseOf(Node.And, () => ctx.and(ctx)(lv)(rv))
+                    .caseOf(Node.Or, () => ctx.or(ctx)(lv)(rv))
+                    .end()));
 
-};
-
-export const applyPolicy = (value: Node.Value, n: Node.Filter, std: Standard): Either<string, any> => {
-
-    let criteria = (typeof std === 'string') ? defaultCriteria[std] : std;
-
-    if (value instanceof Node.List) {
-
-        return Either.left<string, any>('List queries not yet supported!');
-
-    } else if (value instanceof Node.Literal) {
-
-        return castCriteria(value.value, Maybe.fromAny(criteria.cast), n)
-            .chain(v => typeCriteria(v, Maybe.fromAny(criteria.type), n))
-            .chain(v => patternCriteria(v, Maybe.fromAny(criteria.pattern), n))
-            .chain(v => funcCriteria(v, Maybe.fromAny(criteria.func), n))
-            .chain(v => operatorCriteria(v, Maybe.fromAny(criteria.operators), n))
-
-    } else {
-
-        return Either.left('this is probably a bug, looks like we have a phantom value');
-
-    }
-
-}
-
-export const castCriteria = (value: any, typ: Maybe<Function>, _n: Node.Filter)
-    : Either<string, any> =>
-    typ.cata<Either<string, any>>(
-        () => Either.right<string, any>(value),
-        f => Either.right<string, any>(f(value)));
-
-
+const parseFilter = <F>(ctx: Context<F>) => ({ field, operator, value }: Node.Filter)
+    : Either<Err, Vertex<F>> =>
+    Maybe
+        .fromAny(value2JS(value))
+        .chain((value: F) =>
+            Maybe
+                .fromAny(ctx.policies[field])
+                .chain((p: string | Policy<F>) => (typeof p === 'string') ?
+                    Maybe.fromAny(ctx.available[p]) :
+                    Maybe.fromAny(p))
+                .map((p: Policy<F>): Either<Err, Vertex<F>> =>
+                    !checkType(p.type, value) ?
+                        left<Err, Vertex<F>>(invalidFilterType({ field, operator, value }, p.type)) :
+                        (operator === 'default') ?
+                            right<Err, Vertex<F>>((p.vertex(ctx)({ field, operator: p.operators[0], value }))) :
+                            (p.operators.indexOf(operator) > -1) ?
+                                right<Err, Vertex<F>>(p.vertex(ctx)({ field, operator, value })) :
+                                left<Err, Vertex<F>>(invalidFilterOperatorErr<F>({ field, operator, value })))
+                .orJust(() => left<Err, Vertex<F>>(invalidFilterFieldErr<F>({ field, operator, value }))))
+        .get();
 
 /**
- * typeCriteria checks if the value is of the allowed type for the field.
+ * convert source text to a Vertex.
  */
-export const typeCriteria = (value: any, typ: Maybe<string>, n: Node.Filter)
-    : Either<string, any> =>
-    typ.cata<Either<string, any>>(
-        () => Either.right<string, any>(value),
-        typ => (typ !== typeof value) ?
-            Either.left<string, any>(`${n.field} must be type ` +
-                `'${typ}' got '${typeof value}'`) :
-            Either.right<string, any>(value));
-/**
- * patternCriteria requires the value to match a regular expression
- */
-export const patternCriteria = (value: any, pattern: Maybe<string>, n: Node.Filter)
-    : Either<string, any> =>
-    pattern.cata<Either<string, any>>(
-        () => Either.right<string, any>(value),
-        pattern => (!(new RegExp(pattern)).test(value)) ?
-            Either.left<string, any>(`${n.field} does not match the pattern ${pattern}!`) :
-            Either.right<string, any>(value));
-
-/**
- * funcCriteria applies a function to the value before it is used
- */
-export const funcCriteria = (value: any, func: Maybe<(a: any) => any>, _n: Node.Filter)
-    : Either<string, any> =>
-    func.cata<Either<string, any>>(
-        () => Either.right<string, any>(value),
-        f => Either.right<string, any>(f(value)));
-
-/**
- * operatorCriteria ensures the operators used are correct.
- */
-export const operatorCriteria = (value: any, operators: Maybe<string[]>, n: Node.Filter)
-    : Either<string, any> =>
-    operators.cata<Either<string, any>>(
-        () => Either.right<string, any>(value),
-        ops =>
-            (ops.indexOf(n.operator) < 0) ?
-                Either.left<string, any>(`${n.field} only allows the following operators ` +
-                    `"${ops.join()}"!`) :
-                Either.right<string, any>(value));
-
-const _where = (sql: string = '', options: Options) => options.insertWhereKeyword ?
-    (sql.toUpperCase().trim().split(' ').indexOf('WHERE') > -1 ? sql : `${sql} WHERE`) :
-    sql;
-
-/**
- * code turns an AST into Filters.
- */
-export const code = (n: Node.Node, ctx: Context, options: Options): Either<string, Context> => {
-
-    if (n instanceof Node.Conditions) {
-
-        return (n.conditions == null) ?
-            Either.right<string, Context>(ctx) :
-            ensureFilterLimit(n.conditions, options.maxFilters)
-                .chain(con => code(con, new Context(`${_where(ctx.sql, options)}`, ctx.params), options))
-
-    } else if ((n instanceof Node.And) || (n instanceof Node.Or)) {
-
-        let op = (n instanceof Node.And) ? 'AND' : 'OR';
-
-        return code(n.left, new Context('', ctx.params), options)
-            .chain(l =>
-                code(n.right, new Context('', l.params), options)
-                    .map(r => new Context(`${ctx.sql} ${l.sql} ${op} ${r.sql}`, r.params)));
-
-    } else if (n instanceof Node.Filter) {
-
-        return ensureFieldIsInPolicy(n, options.policy)
-            .map(ensureOperator(options.policy[n.field]))
-            .chain(n =>
-                applyPolicy(n.value, n, options.policy[n.field])
-                    .map(value =>
-                        new Context(
-                            `${ctx.sql} ${operators[n.operator](SQLString.escapeId(n.field), n.operator, '?')}`,
-                            ctx.params.concat(value))))
-    } else {
-
-        return Either.left<string, Context>(`Unsupported type ${n.type}!`);
-
-    }
-
-}
-
-const defaultOptions: Options = {
-
-    maxFilters: 100,
-    logSyntaxErrors: true,
-    insertWhereKeyword: true,
-    policy: {}
-
-};
-
-export const compile = (src: string,
-    options: Options = {},
-    ctx: Context = new Context('', [])): Either<string, Context> => {
+export const convert = <F>(ctx: Context<F>) => (source: Source): Either<Err, Vertex<F>> => {
 
     try {
-        return code(parse(src), ctx, util.fuse(defaultOptions, options))
+
+        return (ast2Vertex<F>(ctx)(parse(source)));
+
     } catch (e) {
 
-        if (options.logSyntaxErrors)
-            console.error(e.stack ? e.stack : e);
-        return Either.left<string, Context>(`Invalid Syntax`);
+        return Either.left<Err, Vertex<F>>({ message: e.message });
 
     }
 
 }
 
+/**
+ * compile a string into a usable string of filters.
+ */
+export const compile = <F>(ctx: Context<F>) => (source: Source): Either<Err, F> =>
+    (convert(ctx)(source)).chain((v: Vertex<F>) => v.compile());

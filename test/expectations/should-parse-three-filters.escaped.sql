@@ -1,1 +1,1 @@
-SELECT * FROM ?? WHERE   `type` = ? AND  `name` = ? AND  `active` = ?
+((type LIKE CONCAT('%', ?, '%')) AND (name LIKE CONCAT('%', ?, '%'))) AND (`active` = ?)

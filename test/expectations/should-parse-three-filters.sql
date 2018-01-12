@@ -1,1 +1,1 @@
-SELECT * FROM `database`.`table` WHERE   `type` = 'c' AND  `name` = 'johan' AND  `active` = false
+((type LIKE '%c%') AND (name LIKE '%johan%')) AND (active = false)

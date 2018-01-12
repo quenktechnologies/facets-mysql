@@ -1,11 +1,99 @@
 import * as must from 'must/register';
 import * as fs from 'fs';
-import { compile, Context } from '../src';
+import * as verticies from '../src/vertices';
+import { Context, compile, convert } from '../src';
 
 var input = null;
 var tests = null;
+var params = [];
 
-const ctx = new Context('SELECT * FROM ??', ['database.table']);
+const ctx: Context<string> = {
+
+    options: {
+
+        maxFilters: 100
+
+    },
+  available: verticies.availablePolicies,
+    and: verticies.and,
+    or: verticies.or,
+    empty: verticies.empty,
+    policies: {
+
+        type: {
+
+            type: 'string',
+            operators: ['='],
+            vertex: verticies.like
+
+        },
+        name: {
+
+            type: 'string',
+            operators: ['='],
+            vertex: verticies.like
+
+        },
+        age: {
+
+            type: 'number',
+            operators: ['=', '>=', '>=', '>', '<'],
+            vertex: verticies.operator
+
+        },
+        tag: {
+
+            type: 'string',
+            operators: ['='],
+            vertex: verticies.like
+
+        },
+        religion: {
+
+            type: 'string',
+            operators: ['='],
+            vertex: verticies.like
+
+        },
+        active: {
+
+            type: 'boolean',
+            operators: ['=', '>=', '>=', '>', '<'],
+            vertex: verticies.operator
+
+        },
+        rank: {
+
+            type: 'number',
+            operators: ['=', '>=', '>=', '>', '<'],
+            vertex: verticies.operator
+
+        },
+        'namespace.discount': {
+
+            type: 'number',
+            operators: ['=', '>=', '>=', '<=', '>=', '<'],
+            vertex: verticies.operator
+
+        },
+        user: {
+
+            type: 'string',
+            operators: ['='],
+            vertex: verticies.like
+
+        },
+        price: {
+
+            type: 'number',
+            operators: ['=', '>=', '>=', '>', '<'],
+            vertex: verticies.operator
+
+        },
+             filetype: 'string'
+
+    }
+};
 
 function compare(tree: any, that: any): void {
 
@@ -18,79 +106,73 @@ function makeTest(test, index) {
     var file = index.replace(/\s/g, '-');
 
     if (process.env.GENERATE) {
-        compile(test.input, opts, ctx).cata(
-            e => { if (!test.onError) throw new Error(e); },
-            c => {
-                fs.writeFileSync(`./test/expectations/${file}.escaped.sql`, c.toString());
-                fs.writeFileSync(`./test/expectations/${file}.sql`, c.toSQL());
-            });
-        return;
-    }
+        (compile(ctx)(test.input))
+            .chain(sql => {
 
-    if (!test.skip) {
+                fs.writeFileSync(`./test/expectations/${file}.sql`, sql);
 
-        compile(test.input, opts, ctx)
-            .cata(
-            e => { if (test.onError) return test.onError(e); throw new Error(e) },
-            c => {
+                return (convert(ctx)(test.input))
+                    .chain((c: verticies.SQLVertex) => c.escape(params))
+                    .map(sql =>
+                        fs.writeFileSync(`./test/expectations/${file}.escaped.sql`, sql));
 
-                compare(c.toString(), fs.readFileSync(`./test/expectations/${file}.escaped.sql`, {
+            })
+            .orRight(e => { if (!test.onError) throw new Error(e.message); })
+
+    } else if (!test.skip) {
+
+        (compile(ctx)(test.input))
+            .chain(sql => {
+
+                compare(sql, fs.readFileSync(`./test/expectations/${file}.sql`, {
                     encoding: 'utf8'
-                }))
-                compare(c.toSQL(), fs.readFileSync(`./test/expectations/${file}.sql`, {
-                    encoding: 'utf8'
-                }))
-            });
+                }));
+
+                return (convert(ctx)(test.input))
+                    .chain((c: verticies.SQLVertex) => c.escape(params))
+                    .map(sql =>
+                        compare(sql, fs.readFileSync(`./test/expectations/${file}.sql`, {
+                            encoding: 'utf8'
+                        })));
+
+            })
+            .orRight(e => {
+
+                if (!test.onError)
+                    throw new Error(e.message);
+
+                test.onError(e);
+
+            })
 
     }
 
-}
-const opts = {
-
-    policy: {
-
-        type: 'string',
-        name: { type: 'string', cast: String },
-        age: 'number',
-        tag: 'string',
-        religion: {type:'string', default:'%'},
-        active: 'boolean',
-        rank: 'number',
-        'namespace.discount': 'number',
-        user: 'string',
-        price: 'number',
-        filetype: 'string'
-
-    }
 
 }
 
 tests = {
 
     'should compile a single filter': {
+
         input: 'type:c',
+
     },
 
     'should obey the policy': {
 
         input: 'phantom_field:anything',
-        onError: e => must(e).be(`Unknown column name 'phantom_field'!`)
+        onError: e => must(e.message).be(`Unknown column name 'phantom_field'!`)
 
     },
     'should correctly escape a single filter': {
 
-        input: 'type:%"a OR 1=1"'
+        input: 'type:"a OR 1=1"'
 
     },
     'should reject types that do not match': {
 
         input: 'user:>=22',
-        onError: e => must(e).be(`user must be type 'string' got 'number'`)
-
-    },
-    'should cast': {
-
-        input: 'name:22'
+        onError: e => must(e.message).be(`user must be type 'string' got 'number'`)
 
     },
     'should parse three filters': {
@@ -101,7 +183,7 @@ tests = {
 
     'should parse with all basic operators': {
 
-        input: 'age:>14 rank:<23 price:>=22.40 namespace.discount:<=5.40 name:%"Product % name"',
+        input: 'age:>14 rank:<23 price:>=22.40 namespace.discount:<=5.40 name:"Product % name"',
 
     },
 
@@ -113,25 +195,25 @@ tests = {
 
     'should parse with the OR operator continued': {
 
-        input: 'tag:old OR tag:new OR user:%grandma OR filetype:jpeg'
+        input: 'tag:old OR tag:new OR user:grandma OR filetype:jpeg'
 
     },
     'should allow any character except \'"\' between double quotes': {
 
-        input: 'type:%"%><>?:L^#@!@#%^&p:%\'for long\'!@<=a:%22>=<>#\\$%^&{()\'\`f`\\"',
+        input: 'type:"%><>?:L^#@!@#%^&p:%\'for long\'!@<=a:%22>=<>#\\$%^&{()\'\`f`\\"',
 
     },
     'should not allow double quotes between string literals': {
 
-        input: 'type:%"type%:"dom%""',
-        onError: m => must(m).be('Invalid Syntax')
+        input: 'type:"type%:"dom%""',
+        onError: e => must(e.message).be('Invalid Syntax')
 
     },
-  'should allow LIKE defaults': {
+    'should allow LIKE defaults': {
 
-    input: 'religion:"hip hop"'
+        input: 'religion:"hip hop"'
 
-  }
+    }
 
 };
 
@@ -160,39 +242,6 @@ describe('Compiler', function() {
                 }
 
             });
-        });
-
-        it('should not generate where keyword by default if not specified', () => {
-
-            let ctx = new Context('SELECT * FROM table WHERE stage >= 1 AND');
-
-            compile('stage:22', { policy: { stage: 'number' } }, ctx)
-                .cata(
-                e => { throw new Error(e); },
-                c => must(c.toSQL()).be(`SELECT * FROM table WHERE stage >= 1 AND \`stage\` = 22`));
-
-        });
-
-        it('should not generate where keyword if already there', () => {
-
-            let ctx = new Context('SELECT * FROM table WHERE stage >= 1 AND');
-
-            compile('stage:22', { insertWhereKeyword: true, policy: { stage: 'number' } }, ctx)
-                .cata(
-                e => { throw new Error(e); },
-                c => must(c.toSQL()).be(`SELECT * FROM table WHERE stage >= 1 AND \`stage\` = 22`));
-
-        });
-
-        it('should generate where keyword ', () => {
-
-            let ctx = new Context('SELECT * FROM table');
-
-            compile('stage:22', { insertWhereKeyword: true, policy: { stage: 'number' } }, ctx)
-                .cata(
-                e => { throw new Error(e); },
-                c => must(c.toSQL()).be(`SELECT * FROM table WHERE \`stage\` = 22`));
-
         });
 
     });

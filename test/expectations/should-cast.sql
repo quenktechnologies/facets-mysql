@@ -1,1 +1,0 @@
-SELECT * FROM `database`.`table` WHERE `name` = '22'

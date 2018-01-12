@@ -1,1 +1,1 @@
-SELECT * FROM ?? WHERE  `tag` = ? OR  `tag` = ?
+(tag LIKE CONCAT('%', ?, '%')) OR (tag LIKE CONCAT('%', ?, '%'))

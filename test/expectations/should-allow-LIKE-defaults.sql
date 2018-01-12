@@ -1,1 +1,1 @@
-SELECT * FROM `database`.`table` WHERE `religion` LIKE CONCAT('%','hip hop','%')
+religion LIKE '%hip hop%'

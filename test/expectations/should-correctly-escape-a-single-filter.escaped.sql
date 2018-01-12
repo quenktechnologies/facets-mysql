@@ -1,1 +1,1 @@
-SELECT * FROM ?? WHERE `type` LIKE CONCAT('%',?,'%')
+type LIKE CONCAT('%', ?, '%')

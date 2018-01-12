@@ -1,1 +1,1 @@
-SELECT * FROM `database`.`table` WHERE `type` LIKE CONCAT('%','a OR 1=1','%')
+type LIKE '%a OR 1=1%'

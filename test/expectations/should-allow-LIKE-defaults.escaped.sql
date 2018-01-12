@@ -1,1 +1,1 @@
-SELECT * FROM ?? WHERE `religion` LIKE CONCAT('%',?,'%')
+religion LIKE CONCAT('%', ?, '%')
