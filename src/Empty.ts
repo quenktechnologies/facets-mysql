@@ -1,11 +1,11 @@
-import { SQL, SQLVertex, FilterValue } from '.';
+import { SQL, SQLTerm, FilterValue } from '.';
 import { Either, right } from 'afpl/lib/monad/Either';
-import { Err } from '../';
+import { Err } from '@quenk/facets-dsl';
 
 /**
  * Empty compiles to an empty string.
  */
-export class Empty implements SQLVertex {
+export class Empty implements SQLTerm {
 
     escape(_params: FilterValue[]): Either<Err, SQL> {
 

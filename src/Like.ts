@@ -1,11 +1,11 @@
-import { SQL, FilterValue, SQLVertex } from '.';
+import { Err } from '@quenk/facets-dsl';
+import { SQL, FilterValue, SQLTerm } from '.';
 import { Either, right } from 'afpl/lib/monad/Either';
-import { Err } from '../';
 
 /**
  * Like compiles to the SQL like condition.
  */
-export class Like implements SQLVertex {
+export class Like implements SQLTerm {
 
     constructor(public field: string, public value: string) { }
 

@@ -1,100 +1,92 @@
-import * as must from 'must/register';
 import * as fs from 'fs';
-import * as verticies from '../src/vertices';
+import * as must from 'must/register';
+import * as dsl from '@quenk/facets-dsl';
 import * as src from '../src';
-import { Context, Policies, compile, convert } from '../src';
+import { SQLPolicies, Options, compile, compileE} from '../src';
 
 var input = null;
 var tests = null;
 var params = [];
 
-const policies: Policies<string> = {
+const policies: SQLPolicies = {
 
     type: {
 
         type: 'string',
         operators: ['='],
-        vertex: verticies.like
+        term: src.like
 
     },
     name: {
 
         type: 'string',
         operators: ['='],
-        vertex: verticies.like
+        term: src.like
 
     },
     age: {
 
         type: 'number',
         operators: ['=', '>=', '>=', '>', '<'],
-        vertex: verticies.operator
+        term: src.operator
 
     },
     tag: {
 
         type: 'string',
         operators: ['='],
-        vertex: verticies.like
+        term: src.like
 
     },
     religion: {
 
         type: 'string',
         operators: ['='],
-        vertex: verticies.like
+        term: src.like
 
     },
     active: {
 
         type: 'boolean',
         operators: ['=', '>=', '>=', '>', '<'],
-        vertex: verticies.operator
+        term: src.operator
 
     },
     rank: {
 
         type: 'number',
         operators: ['=', '>=', '>=', '>', '<'],
-        vertex: verticies.operator
+        term: src.operator
 
     },
     'namespace.discount': {
 
         type: 'number',
         operators: ['=', '>=', '>=', '<=', '>=', '<'],
-        vertex: verticies.operator
+        term: src.operator
 
     },
     user: {
 
         type: 'string',
         operators: ['='],
-        vertex: verticies.like
+        term: src.like
 
     },
     price: {
 
         type: 'number',
         operators: ['=', '>=', '>=', '>', '<'],
-        vertex: verticies.operator
+        term: src.operator
 
     },
     filetype: 'string'
 
 }
 
-const ctx: Context<string> = {
-
-    options: {
+const options:Options = {
 
         maxFilters: 100
-
-    },
-    policies: verticies.availablePolicies,
-    and: verticies.and,
-    or: verticies.or,
-    empty: verticies.empty
 
 };
 
@@ -106,17 +98,17 @@ function compare(tree: any, that: any): void {
 
 function makeTest(test, index) {
 
-    var file = index.replace(/\s/g, '-');
+    let file = index.replace(/\s/g, '-');
+    let _compile = compile(options)(policies);
+    let _compileE = compileE(options)(policies)(params);
 
     if (process.env.GENERATE) {
-        (compile(ctx)(policies)(test.input))
+        _compile(test.input)
             .chain(sql => {
 
                 fs.writeFileSync(`./test/expectations/${file}.sql`, sql);
 
-                return (convert(ctx)(policies)(test.input))
-                    .chain((c: verticies.SQLVertex) => c.escape(params))
-                    .map(sql =>
+                return _compileE(test.input).map(sql =>
                         fs.writeFileSync(`./test/expectations/${file}.escaped.sql`, sql));
 
             })
@@ -124,15 +116,14 @@ function makeTest(test, index) {
 
     } else if (!test.skip) {
 
-        (compile(ctx)(policies)(test.input))
+        _compile(test.input)
             .chain(sql => {
 
                 compare(sql, fs.readFileSync(`./test/expectations/${file}.sql`, {
                     encoding: 'utf8'
                 }));
 
-                return (convert(ctx)(policies)(test.input))
-                    .chain((c: verticies.SQLVertex) => c.escape(params))
+                return _compileE(test.input)
                     .map(sql =>
                         compare(sql, fs.readFileSync(`./test/expectations/${file}.escaped.sql`, {
                             encoding: 'utf8'
@@ -163,7 +154,7 @@ tests = {
     'should obey the policy': {
 
         input: 'phantom_field:anything',
-        onError: e => must(e).eql(src.invalidFilterFieldErr({
+        onError: e => must(e).eql(dsl.invalidFilterFieldErr({
             field: 'phantom_field',
             operator: 'default',
             value: 'anything'
@@ -178,7 +169,7 @@ tests = {
     'should reject types that do not match': {
 
         input: 'user:>=22',
-        onError: e => must(e).eql(src.invalidFilterTypeErr({
+        onError: e => must(e).eql(dsl.invalidFilterTypeErr({
             field: 'user',
             operator: '>=',
             value: 22
