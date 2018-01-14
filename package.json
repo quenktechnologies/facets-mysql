@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@quenk/facets-dsl": "^0.4.1",
-    "@quenk/facets-parser": "^0.2.1",
     "@quenk/match": "^1.1.0",
     "@quenk/polate": "^1.3.0",
     "afpl": "^0.12.0",
