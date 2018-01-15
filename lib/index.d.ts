@@ -6,11 +6,15 @@ import { Empty } from './Empty';
 import { Like } from './Like';
 import { Or } from './Or';
 import { Operator } from './Operator';
-export { Comparison, And, Empty, Like, Or, Operator, Policies };
+export { Options, Comparison, And, Empty, Like, Or, Operator };
 /**
  * SQL code.
  */
 export declare type SQL = string;
+/**
+ * SQLPolicies
+ */
+export declare type SQLPolicies = Policies<SQL>;
 /**
  * FilterValue is the allowed values to be used in filters
  */
@@ -67,10 +71,10 @@ export declare const defaultOptions: {
 /**
  * compile a source string into SQL.
  */
-export declare const compile: (policies: PolicyMap<string>) => (options: Options) => (p: Policies<string>) => (source: string) => Either<Err, string>;
+export declare const compile: (options: Options) => (p: Policies<string>) => (source: string) => Either<Err, string>;
 /**
  * compileE compiles to SQL with user supplied values replaced by '?'.
  *
  * The actual values are fed into the provided array.
  */
-export declare const compileE: (policies: PolicyMap<string>) => (options: Options) => (enabled: Policies<string>) => (params: any[]) => (source: string) => Either<Err, string>;
+export declare const compileE: (options: Options) => (enabled: Policies<string>) => (params: any[]) => (source: string) => Either<Err, string>;
