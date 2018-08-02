@@ -6,6 +6,7 @@ import {
     Term,
     Options,
     Source,
+    TermConsMap,
     FilterSpec,
     Err,
     compile as _compile,
@@ -84,7 +85,7 @@ export const operator = (_: Context<string>) =>
 /**
  * defaultTerms for supporting the DSL.
  */
-export const defaultTerms = {
+export const defaultTerms: TermConsMap<SQL> = {
     and: and,
     or: or,
     empty: empty
@@ -98,7 +99,7 @@ export const defaultPolicies: PolicyMap<string> = {
     number: {
 
         type: 'number',
-        operators: ['=', '>=', '>=', '<=', '>=', '<'],
+      operators: ['=', '>=', '>=', '<=', '>=', '<', '>'],
         term: operator
 
     },
@@ -108,7 +109,14 @@ export const defaultPolicies: PolicyMap<string> = {
         operators: ['='],
         term: like
 
-    }
+    },
+    date: {
+
+        type: 'string',
+      operators: ['=', '>=', '>=', '<=', '>=', '<', '>'],
+        term: operator
+
+    },
 
 };
 
@@ -137,5 +145,5 @@ export const compileE = (options: Options) => (enabled: SQLPolicies) =>
             terms: defaultTerms,
             policies: defaultPolicies,
             options
-        })(enabled)(source))            .chain((t: SQLTerm) => t.escape(params));
+        })(enabled)(source)).chain((t: SQLTerm) => t.escape(params));
 

@@ -1,5 +1,5 @@
 import { Either } from 'afpl/lib/monad/Either';
-import { PolicyMap, Policies, Context, Term, Options, FilterSpec, Err } from '@quenk/facets-dsl';
+import { PolicyMap, Policies, Context, Term, Options, TermConsMap, FilterSpec, Err } from '@quenk/facets-dsl';
 import { Comparison } from './Comparison';
 import { And } from './And';
 import { Empty } from './Empty';
@@ -53,11 +53,7 @@ export declare const operator: (_: Context<string>) => ({field, operator, value}
 /**
  * defaultTerms for supporting the DSL.
  */
-export declare const defaultTerms: {
-    and: (_: Context<string>) => (left: SQLTerm) => (right: SQLTerm) => And;
-    or: (_: Context<string>) => (left: SQLTerm) => (right: SQLTerm) => Or;
-    empty: () => Empty;
-};
+export declare const defaultTerms: TermConsMap<SQL>;
 /**
  * defaultPolicies that can be specified as strings instead of maps.
  */

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as must from 'must/register';
 import * as dsl from '@quenk/facets-dsl';
 import * as src from '../src';
-import { SQLPolicies, Options, compile, compileE} from '../src';
+import { SQLPolicies, Options, compile, compileE } from '../src';
 
 var input = null;
 var tests = null;
@@ -59,7 +59,7 @@ const policies: SQLPolicies = {
         term: src.operator
 
     },
-    'namespace.discount': {
+    'namespace': {
 
         type: 'number',
         operators: ['=', '>=', '>=', '<=', '>=', '<'],
@@ -80,13 +80,14 @@ const policies: SQLPolicies = {
         term: src.operator
 
     },
-    filetype: 'string'
+    filetype: 'string',
+    dob: 'date'
 
 }
 
-const options:Options = {
+const options: Options = {
 
-        maxFilters: 100
+    maxFilters: 100
 
 };
 
@@ -109,7 +110,7 @@ function makeTest(test, index) {
                 fs.writeFileSync(`./test/expectations/${file}.sql`, sql);
 
                 return _compileE(test.input).map(sql =>
-                        fs.writeFileSync(`./test/expectations/${file}.escaped.sql`, sql));
+                    fs.writeFileSync(`./test/expectations/${file}.escaped.sql`, sql));
 
             })
             .orRight(e => { if (!test.onError) throw new Error(e.message); })
@@ -185,7 +186,7 @@ tests = {
 
     'should parse with all basic operators': {
 
-        input: 'age:>14 rank:<23 price:>=22.40 namespace.discount:<=5.40 name:"Product % name"',
+        input: 'age:>14 rank:<23 price:>=22.40 namespace:<=5.40 name:"Product % name"',
 
     },
 
@@ -214,6 +215,11 @@ tests = {
     'should allow LIKE defaults': {
 
         input: 'religion:"hip hop"'
+
+    },
+    'should allow date literals': {
+
+        input: 'dob:>1989-07-24'
 
     }
 
